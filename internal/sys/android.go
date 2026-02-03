@@ -33,6 +33,25 @@ func LaunchApp(pkg, activity string) error {
 	return nil
 }
 
+// RunCommand executes a shell command, script, or binary.
+// The command is run via sh -c to support pipes, redirects, etc.
+func RunCommand(command string) error {
+	cmd := exec.Command("sh", "-c", command)
+
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+
+	err := cmd.Start()
+	if err != nil {
+		return &LaunchError{Message: err.Error()}
+	}
+
+	// Don't wait for command to finish - run in background
+	go cmd.Wait()
+
+	return nil
+}
+
 // LaunchError represents an error during app launch.
 type LaunchError struct {
 	Message string

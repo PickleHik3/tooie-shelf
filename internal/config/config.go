@@ -22,18 +22,26 @@ type GridConfig struct {
 
 // StyleConfig defines visual styling options.
 type StyleConfig struct {
-	Border    bool    `yaml:"border"`
-	Padding   int     `yaml:"padding"`
-	IconScale float64 `yaml:"icon_scale,omitempty"` // Global icon scale (0.1-1.0), default 1.0
+	Border          bool   `yaml:"border"`
+	Padding         int    `yaml:"padding"`
+	IconScale       float64 `yaml:"icon_scale,omitempty"` // Global icon scale (0.1-1.0), default 1.0
+	BorderColor     string `yaml:"border_color,omitempty"`     // Normal border color (ANSI 256 color or "default")
+	HighlightColor  string `yaml:"highlight_color,omitempty"`  // Click highlight color (ANSI 256 color or "default")
 }
 
 // AppConfig defines a single app entry.
 type AppConfig struct {
 	Name      string  `yaml:"name"`
 	Icon      string  `yaml:"icon"`
-	Package   string  `yaml:"package"`
-	Activity  string  `yaml:"activity,omitempty"`
-	IconScale float64 `yaml:"icon_scale,omitempty"` // Per-app override (0.1-1.0)
+	Package   string  `yaml:"package,omitempty"`           // Android package name
+	Activity  string  `yaml:"activity,omitempty"`          // Android activity
+	Command   string  `yaml:"command,omitempty"`           // Linux command/script/binary (takes priority over package)
+	IconScale float64 `yaml:"icon_scale,omitempty"`        // Per-app override (0.1-1.0)
+}
+
+// IsCommand returns true if this app runs a command instead of launching an Android app.
+func (a *AppConfig) IsCommand() bool {
+	return a.Command != ""
 }
 
 // GetIconScale returns the effective icon scale for an app (per-app or global).
@@ -89,13 +97,31 @@ func DefaultConfig() Config {
 			Columns: 5,
 		},
 		Style: StyleConfig{
-			Border:    true,
-			Padding:   1,
-			IconScale: 1.0,
+			Border:         true,
+			Padding:        1,
+			IconScale:      1.0,
+			BorderColor:    "240",
+			HighlightColor: "96",
 		},
 		Behavior: BehaviorConfig{
 			CloseOnLaunch: false,
 		},
 		Apps: []AppConfig{},
 	}
+}
+
+// GetBorderColor returns the border color, or default if not set.
+func (c *Config) GetBorderColor() string {
+	if c.Style.BorderColor == "" || c.Style.BorderColor == "default" {
+		return "240"
+	}
+	return c.Style.BorderColor
+}
+
+// GetHighlightColor returns the highlight color, or default if not set.
+func (c *Config) GetHighlightColor() string {
+	if c.Style.HighlightColor == "" || c.Style.HighlightColor == "default" {
+		return "96"
+	}
+	return c.Style.HighlightColor
 }

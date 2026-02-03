@@ -24,6 +24,7 @@ type Model struct {
 
 	Ready           bool // Terminal geometry acquired
 	NeedsFullRedraw bool // When true, redraw icons; when false, only redraw borders
+	SixelsDrawn     bool // True if sixels have been drawn to screen (static mode)
 }
 
 // launchResultMsg carries the result of an app launch attempt.
@@ -46,6 +47,7 @@ func NewModel(cfg config.Config) Model {
 		Selected:        -1,
 		Ready:           false,
 		NeedsFullRedraw: true,
+		SixelsDrawn:     false,
 	}
 }
 

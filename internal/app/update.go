@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"image"
 	"os"
+	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 
@@ -40,9 +41,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case terminalGeometryMsg:
+		// Debounce: only update if dimensions actually changed
+		if m.CellPx.Width == msg.CellDim.Width &&
+			m.CellPx.Height == msg.CellDim.Height &&
+			m.Ready {
+			return m, nil
+		}
 		m.CellPx = msg.CellDim
 		m.Ready = true
 		m.ClearCache()
+		m.SixelsDrawn = false // Force sixel redraw at new positions
 		return m, tea.ClearScreen
 
 	case iconsLoadedMsg:
@@ -58,8 +66,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// Flash visual feedback directly via ANSI (no View() redraw)
 			m.flashCell(index)
 
-			// Launch app
-			go sys.LaunchApp(m.DisplayApps[index].Package, m.DisplayApps[index].Activity)
+			app := m.DisplayApps[index]
+			if app.IsCommand() {
+				// Run command/script/binary
+				go sys.RunCommand(app.Command)
+			} else {
+				// Launch Android app
+				go sys.LaunchApp(app.Package, app.Activity)
+			}
 
 			if m.Config.Behavior.CloseOnLaunch {
 				return m, tea.Quit
@@ -132,8 +146,9 @@ func (m *Model) flashCell(index int) {
 	startX := col*cellW + 1
 	startY := row*cellH + 1
 
-	// Highlight color (bright cyan)
-	highlight := "\x1b[96m" // Bright cyan
+	// Get highlight color from config
+	highlightColor := m.Config.GetHighlightColor()
+	highlight := fmt.Sprintf("\x1b[38;5;%sm", highlightColor)
 	reset := "\x1b[0m"
 
 	// Rounded border characters
@@ -170,5 +185,66 @@ func (m *Model) flashCell(index int) {
 	output += fmt.Sprintf("\x1b[%d;1H", m.TermHeight)
 
 	// Write directly to stdout
+	fmt.Fprint(os.Stdout, output)
+
+	// Schedule reset to normal border after delay
+	go func() {
+		time.Sleep(150 * time.Millisecond)
+		m.drawNormalBorder(index)
+	}()
+}
+
+// drawNormalBorder draws the normal border color for a cell via direct ANSI.
+func (m *Model) drawNormalBorder(index int) {
+	if !m.Config.Style.Border {
+		return
+	}
+
+	cellW, cellH := m.GridCellSize()
+	if cellW <= 0 || cellH <= 0 {
+		return
+	}
+
+	col := index % m.Config.Grid.Columns
+	row := index / m.Config.Grid.Columns
+
+	startX := col*cellW + 1
+	startY := row*cellH + 1
+
+	// Get normal border color from config
+	borderColor := m.Config.GetBorderColor()
+	color := fmt.Sprintf("\x1b[38;5;%sm", borderColor)
+	reset := "\x1b[0m"
+
+	topLeft := "╭"
+	topRight := "╮"
+	bottomLeft := "╰"
+	bottomRight := "╯"
+	horizontal := "─"
+	vertical := "│"
+
+	var output string
+
+	// Top border
+	output += fmt.Sprintf("\x1b[%d;%dH%s%s", startY, startX, color, topLeft)
+	for x := 1; x < cellW-1; x++ {
+		output += horizontal
+	}
+	output += topRight
+
+	// Side borders
+	for y := 1; y < cellH-1; y++ {
+		output += fmt.Sprintf("\x1b[%d;%dH%s", startY+y, startX, vertical)
+		output += fmt.Sprintf("\x1b[%d;%dH%s", startY+y, startX+cellW-1, vertical)
+	}
+
+	// Bottom border
+	output += fmt.Sprintf("\x1b[%d;%dH%s", startY+cellH-1, startX, bottomLeft)
+	for x := 1; x < cellW-1; x++ {
+		output += horizontal
+	}
+	output += bottomRight + reset
+
+	output += fmt.Sprintf("\x1b[%d;1H", m.TermHeight)
 	fmt.Fprint(os.Stdout, output)
 }

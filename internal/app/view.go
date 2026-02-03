@@ -29,19 +29,9 @@ func (m Model) View() string {
 	}
 
 	cellW, cellH := m.GridCellSize()
-	iconW, iconH := m.IconCellSize()
 
 	if cellW <= 0 || cellH <= 0 {
 		return "Terminal too small"
-	}
-
-	// Check if icons are loaded
-	iconsLoaded := false
-	for _, icon := range m.Icons {
-		if icon != nil {
-			iconsLoaded = true
-			break
-		}
 	}
 
 	var b strings.Builder
@@ -86,58 +76,10 @@ func (m Model) View() string {
 
 	b.WriteString(lipgloss.JoinVertical(lipgloss.Left, rows...))
 
-	// Second pass: overlay sixel images at absolute positions
-	if iconsLoaded {
-		appIndex = 0
-		for row := 0; row < m.Config.Grid.Rows && appIndex < len(m.DisplayApps); row++ {
-			for col := 0; col < m.Config.Grid.Columns && appIndex < len(m.DisplayApps); col++ {
-				if appIndex < len(m.Icons) && m.Icons[appIndex] != nil {
-					// Apply icon scale
-					scale := m.GetIconScale(appIndex)
-					scaledIconW := int(float64(iconW) * scale)
-					scaledIconH := int(float64(iconH) * scale)
-					if scaledIconW < 1 {
-						scaledIconW = 1
-					}
-					if scaledIconH < 1 {
-						scaledIconH = 1
-					}
-
-					sixelResult := m.getSixelContentWithDimensions(appIndex, scaledIconW, scaledIconH, scale)
-					if sixelResult.Sixel != "" {
-						// Calculate absolute position for this icon
-						borderOffset := 0
-						if m.Config.Style.Border {
-							borderOffset = 1
-						}
-						padOffset := m.Config.Style.Padding
-
-						// Calculate centering offset based on actual sixel pixel dimensions
-						sixelWidthCells := sixelResult.Width / m.CellPx.Width
-						sixelHeightCells := sixelResult.Height / m.CellPx.Height
-						centerOffsetX := (iconW - sixelWidthCells) / 2
-						centerOffsetY := (iconH - sixelHeightCells) / 2
-
-						// Position: centered within the icon area
-						// +1 because terminal positions are 1-indexed
-						posX := col*cellW + borderOffset + padOffset + centerOffsetX + 1
-						posY := row*cellH + borderOffset + padOffset + centerOffsetY + 1
-
-						if posX < 1 {
-							posX = 1
-						}
-						if posY < 1 {
-							posY = 1
-						}
-
-						// Move cursor and render sixel
-						b.WriteString(fmt.Sprintf(cursorTo, posY, posX))
-						b.WriteString(sixelResult.Sixel)
-					}
-				}
-				appIndex++
-			}
-		}
+	// Second pass: overlay sixel images at absolute positions (only if not already drawn)
+	// This ensures sixels are drawn once and persist across renders
+	if !m.SixelsDrawn {
+		m.drawSixelsDirectly(&b)
 	}
 
 	// Move cursor to bottom
@@ -147,7 +89,86 @@ func (m Model) View() string {
 	return b.String()
 }
 
+// drawSixelsDirectly renders sixel images directly to the output.
+// This is called once and the sixels persist in the terminal buffer.
+func (m *Model) drawSixelsDirectly(b *strings.Builder) {
+	// Check if icons are loaded
+	iconsLoaded := false
+	for _, icon := range m.Icons {
+		if icon != nil {
+			iconsLoaded = true
+			break
+		}
+	}
+
+	if !iconsLoaded {
+		return
+	}
+
+	cellW, cellH := m.GridCellSize()
+	iconW, iconH := m.IconCellSize()
+
+	if cellW <= 0 || cellH <= 0 {
+		return
+	}
+
+	appIndex := 0
+	for row := 0; row < m.Config.Grid.Rows && appIndex < len(m.DisplayApps); row++ {
+		for col := 0; col < m.Config.Grid.Columns && appIndex < len(m.DisplayApps); col++ {
+			if appIndex < len(m.Icons) && m.Icons[appIndex] != nil {
+				// Apply icon scale
+				scale := m.GetIconScale(appIndex)
+				scaledIconW := int(float64(iconW) * scale)
+				scaledIconH := int(float64(iconH) * scale)
+				if scaledIconW < 1 {
+					scaledIconW = 1
+				}
+				if scaledIconH < 1 {
+					scaledIconH = 1
+				}
+
+				sixelResult := m.getSixelContentWithDimensions(appIndex, scaledIconW, scaledIconH, scale)
+				if sixelResult.Sixel != "" {
+					// Calculate absolute position for this icon
+					borderOffset := 0
+					if m.Config.Style.Border {
+						borderOffset = 1
+					}
+					padOffset := m.Config.Style.Padding
+
+					// Calculate centering offset based on actual sixel pixel dimensions
+					sixelWidthCells := sixelResult.Width / m.CellPx.Width
+					sixelHeightCells := sixelResult.Height / m.CellPx.Height
+					centerOffsetX := (iconW - sixelWidthCells) / 2
+					centerOffsetY := (iconH - sixelHeightCells) / 2
+
+					// Position: centered within the icon area
+					// +1 because terminal positions are 1-indexed
+					posX := col*cellW + borderOffset + padOffset + centerOffsetX + 1
+					posY := row*cellH + borderOffset + padOffset + centerOffsetY + 1
+
+					if posX < 1 {
+						posX = 1
+					}
+					if posY < 1 {
+						posY = 1
+					}
+
+					// Move cursor and render sixel
+					b.WriteString(fmt.Sprintf(cursorTo, posY, posX))
+					b.WriteString(sixelResult.Sixel)
+				}
+			}
+			appIndex++
+		}
+	}
+
+	m.SixelsDrawn = true
+}
+
 // renderCellFrame renders just the border/frame of a cell.
+// Note: Border colors are now handled via direct ANSI in flashCell/drawNormalBorder
+// to avoid triggering full View() redraws on interaction.
 func (m *Model) renderCellFrame(index, innerW, innerH int) string {
 	style := lipgloss.NewStyle().
 		Width(innerW).
@@ -155,13 +176,13 @@ func (m *Model) renderCellFrame(index, innerW, innerH int) string {
 
 	if m.Config.Style.Border {
 		borderStyle := lipgloss.RoundedBorder()
-		borderColor := lipgloss.Color("240")
+		// Use configured border color for initial render
+		borderColor := lipgloss.Color(m.Config.GetBorderColor())
 
 		if m.ErrorFlash[index] {
 			borderColor = lipgloss.Color("196")
-		} else if m.Selected == index {
-			borderColor = lipgloss.Color("39")
 		}
+		// Note: m.Selected highlighting is now handled via direct ANSI
 
 		style = style.
 			Border(borderStyle).
@@ -180,7 +201,7 @@ func (m *Model) renderEmptyCell(innerW, innerH int) string {
 	if m.Config.Style.Border {
 		style = style.
 			Border(lipgloss.RoundedBorder()).
-			BorderForeground(lipgloss.Color("238"))
+			BorderForeground(lipgloss.Color(m.Config.GetBorderColor()))
 	}
 
 	return style.Render("")
