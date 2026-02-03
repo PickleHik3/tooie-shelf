@@ -7,15 +7,13 @@ import (
 )
 
 // LaunchApp starts an Android app using the am command.
-// If activity is empty, it launches the default activity for the package.
+// Both package and activity are required.
 func LaunchApp(pkg, activity string) error {
-	var cmd *exec.Cmd
-	if activity != "" {
-		cmd = exec.Command("am", "start", "-n", pkg+"/"+activity)
-	} else {
-		// Launch default activity using package name
-		cmd = exec.Command("am", "start", pkg)
+	if pkg == "" || activity == "" {
+		return &LaunchError{Message: "both package and activity are required"}
 	}
+
+	cmd := exec.Command("am", "start", "-n", pkg+"/"+activity)
 
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr

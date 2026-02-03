@@ -39,16 +39,11 @@ behavior:
   close_on_launch: true
 
 apps:
-  # Android app
+  # Android app (both package AND activity required)
   - name: Chrome
     icon: /path/to/chrome.png
     package: com.android.chrome
-
-  # Android app with specific activity
-  - name: Files
-    icon: /path/to/files.png
-    package: com.google.android.apps.nbu.files
-    activity: com.google.android.apps.nbu.files.home.HomeActivity
+    activity: com.google.android.chrome.Main
 
   # Linux command
   - name: Htop
@@ -81,8 +76,8 @@ apps:
 | `behavior.close_on_launch` | Exit after launching an app (default: false) |
 | `apps[].name` | Display name (used for display order matching) |
 | `apps[].icon` | Path to icon image (PNG, JPG, GIF) |
-| `apps[].package` | Android package name (for Android apps) |
-| `apps[].activity` | Optional: specific Android activity to launch |
+| `apps[].package` | Android package name (required with activity) |
+| `apps[].activity` | Android activity name (required with package) |
 | `apps[].command` | Linux command/script/binary (takes priority over package) |
 | `apps[].icon_scale` | Per-app icon scale override (0.1-1.0) |
 

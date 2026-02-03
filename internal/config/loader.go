@@ -69,8 +69,14 @@ func validate(cfg Config) error {
 	}
 
 	for i, app := range cfg.Apps {
-		if app.Package == "" {
-			return fmt.Errorf("app %d (%s): package name is required", i, app.Name)
+		// Android apps require both package and activity
+		if app.Command == "" {
+			if app.Package == "" {
+				return fmt.Errorf("app %d (%s): package name is required for Android apps", i, app.Name)
+			}
+			if app.Activity == "" {
+				return fmt.Errorf("app %d (%s): activity is required for Android apps (use 'command' for Linux commands)", i, app.Name)
+			}
 		}
 		if app.Icon != "" {
 			if _, err := os.Stat(app.Icon); err != nil {
