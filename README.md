@@ -1,4 +1,4 @@
-# tooie-appsbar-go
+# Tooie Shelf
 
 A terminal-based app bar for Android (Termux) that displays app icons using Sixel graphics.
 
@@ -10,12 +10,12 @@ A terminal-based app bar for Android (Termux) that displays app icons using Sixe
 ## Build
 
 ```bash
-go build -ldflags="-s -w" -o tooie-appsbar ./cmd/launcher
+go build -ldflags="-s -w" -o tooie-shelf ./cmd/launcher
 ```
 
 ## Configuration
 
-Config file: `~/.config/tooie-appsbar-go/config.yaml`
+Config file: `~/.config/tooie-shelf/config.yaml`
 
 ```yaml
 # Display order - only these apps shown, in this order
@@ -89,7 +89,7 @@ apps:
 ## Usage
 
 ```bash
-./tooie-appsbar
+./tooie-shelf
 ```
 
 - Touch an icon to launch the app

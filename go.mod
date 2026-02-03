@@ -1,4 +1,4 @@
-module tooie-appsbar-go
+module tooie-shelf
 
 go 1.21
 

@@ -1,4 +1,4 @@
-# AGENTS.md - tooie-appsbar-go
+# AGENTS.md - Tooie Shelf
 
 Guide for AI agents working in this codebase.
 
@@ -17,7 +17,7 @@ A terminal-based app bar for Android (Termux) that displays app icons using Sixe
 
 ```bash
 # Build (optimized binary)
-go build -ldflags="-s -w" -o tooie-appsbar ./cmd/launcher
+go build -ldflags="-s -w" -o tooie-shelf ./cmd/launcher
 
 # Run
 go run ./cmd/launcher
@@ -35,7 +35,7 @@ go vet ./...
 ## Project Structure
 
 ```
-tooie-appsbar-go/
+tooie-shelf/
 ├── cmd/launcher/main.go          # Entry point
 ├── internal/
 │   ├── app/
@@ -103,7 +103,7 @@ The app follows the Bubble Tea Model-Update-View pattern:
 
 ## Configuration
 
-Config file: `~/.config/tooie-appsbar-go/config.yaml`
+Config file: `~/.config/tooie-shelf/config.yaml`
 
 ```yaml
 # Display order - only these apps shown, in this order

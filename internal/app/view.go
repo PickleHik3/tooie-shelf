@@ -6,7 +6,7 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 
-	"tooie-appsbar-go/internal/graphics"
+	"tooie-shelf/internal/graphics"
 )
 
 // ANSI escape codes for cursor positioning and sync output
@@ -25,7 +25,7 @@ func (m Model) View() string {
 	}
 
 	if len(m.DisplayApps) == 0 {
-		return "No apps configured. Edit ~/.config/tooie-appsbar-go/config.yaml"
+		return "No apps configured. Edit ~/.config/tooie-shelf/config.yaml"
 	}
 
 	cellW, cellH := m.GridCellSize()

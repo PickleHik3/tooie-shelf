@@ -15,7 +15,7 @@ func ConfigPath() string {
 	if err != nil {
 		home = "."
 	}
-	return filepath.Join(home, ".config", "tooie-appsbar-go", "config.yaml")
+	return filepath.Join(home, ".config", "tooie-shelf", "config.yaml")
 }
 
 // Load reads and parses the configuration file.
@@ -88,6 +88,6 @@ func EnsureConfigDir() error {
 	if err != nil {
 		return err
 	}
-	dir := filepath.Join(home, ".config", "tooie-appsbar-go", "icons")
+	dir := filepath.Join(home, ".config", "tooie-shelf", "icons")
 	return os.MkdirAll(dir, 0755)
 }

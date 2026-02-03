@@ -8,9 +8,9 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"tooie-appsbar-go/internal/config"
-	"tooie-appsbar-go/internal/graphics"
-	"tooie-appsbar-go/internal/sys"
+	"tooie-shelf/internal/config"
+	"tooie-shelf/internal/graphics"
+	"tooie-shelf/internal/sys"
 )
 
 // Init initializes the model.

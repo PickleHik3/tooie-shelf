@@ -6,8 +6,8 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"tooie-appsbar-go/internal/app"
-	"tooie-appsbar-go/internal/config"
+	"tooie-shelf/internal/app"
+	"tooie-shelf/internal/config"
 )
 
 func main() {

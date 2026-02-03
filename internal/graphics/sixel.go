@@ -10,7 +10,7 @@ import (
 
 	"github.com/mattn/go-sixel"
 
-	"tooie-appsbar-go/internal/sys"
+	"tooie-shelf/internal/sys"
 )
 
 // SixelResult contains the sixel string and its pixel dimensions.
