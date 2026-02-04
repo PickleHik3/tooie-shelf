@@ -1,0 +1,97 @@
+# Tooie Shelf Configuration
+# https://github.com/PickleHik3/tooie-shelf
+#
+# QUICK START:
+# 1. Copy this file to ~/.config/tooie-shelf/config.yaml
+# 2. Edit the 'display' list to show only apps you want
+# 3. Add your apps to the 'apps' section
+# 4. Run: ./tooie-shelf
+#
+# AUTO-DETECTION (RECOMMENDED):
+# Just provide the app name - package and activity will be auto-detected!
+# Example:
+#   - name: "YouTube"
+#     icon: "dashboard:youtube"
+#     # package and activity auto-detected from installed apps
+#
+# ICON SOURCES (in priority order):
+# 1. dashboard:name - Downloads from Dashboard Icons CDN
+#    Example: "dashboard:youtube", "dashboard:google-maps"
+#    Find icons at: https://github.com/homarr-labs/dashboard-icons
+#
+# 2. https://... - Direct URL to image
+#    Example: "https://example.com/icon.png"
+#
+# 3. Local file path - PNG, JPG, WebP supported
+#    Example: "~/.config/tooie-shelf/icons/myapp.png"
+#
+# 4. Omit icon field - Extracts icon from APK automatically
+#
+# APP TYPES:
+#
+# Type A: Android App (Auto-detect) - RECOMMENDED
+#   - name: "App Name"      # Display name
+#   - icon: "dashboard:..."  # Optional: icon source
+#   # package and activity auto-detected from name
+#
+# Type B: Android App (Manual) - Use if auto-detect fails
+#   - name: "App Name"
+#   - icon: "dashboard:..."
+#   - package: "com.example.app"
+#   - activity: "com.example.app.MainActivity"
+#
+# Type C: Linux Command/Script
+#   - name: "Htop"
+#   - icon: "dashboard:terminal"
+#   - command: "htop"        # Runs this command instead of Android app
+#
+# DISPLAY ORDER:
+# Only apps listed in 'display' will be shown, in that order.
+# If 'display' is empty, all apps are shown.
+
+display:
+  - reddit
+  - Google Maps
+  - Waze
+  - Lumina-walls
+  - Immich
+  - Backdrops
+
+grid:
+  rows: 1
+  columns: 6
+
+style:
+  border: true
+  padding: 1
+  icon_scale: 1.0
+  border_color: "240"
+  highlight_color: "96"
+
+behavior:
+  close_on_launch: false
+
+apps:
+  # Examples with auto-detection (recommended):
+  - name: "Obtainium"
+    icon: "dashboard:obtainium"
+    # Auto-detects: package=dev.imranr.obtainium, activity=MainActivity
+
+  - name: "Google Maps"
+    icon: "dashboard:google-maps"
+    # Auto-detects: package=com.google.android.apps.maps
+
+  - name: "WhatsApp"
+    # No icon specified - extracts from APK
+    # Auto-detects: package=com.whatsapp
+
+  # Example with manual package/activity (if auto-detect fails):
+  - name: "Custom App"
+    icon: "~/.config/tooie-shelf/icons/custom.png"
+    package: "com.example.custom"
+    activity: "com.example.custom.MainActivity"
+
+  # Example Linux command:
+  - name: "Htop"
+    icon: "dashboard:terminal"
+    command: "htop"

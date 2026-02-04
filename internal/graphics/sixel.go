@@ -2,11 +2,13 @@ package graphics
 
 import (
 	"bytes"
+	"fmt"
 	"image"
 	"image/png"
 	_ "image/gif"
 	_ "image/jpeg"
 	"os"
+	"os/exec"
 
 	"github.com/mattn/go-sixel"
 
@@ -27,6 +29,7 @@ func RenderSixel(src image.Image, widthCells, heightCells int, cellPx sys.CellDi
 }
 
 // RenderSixelWithDimensions converts an image to a sixel string and returns the actual pixel dimensions.
+// All icons are standardized to a square format before scaling to ensure consistent sizing.
 func RenderSixelWithDimensions(src image.Image, widthCells, heightCells int, cellPx sys.CellDim) SixelResult {
 	targetW := widthCells * cellPx.Width
 	targetH := heightCells * cellPx.Height
@@ -35,7 +38,18 @@ func RenderSixelWithDimensions(src image.Image, widthCells, heightCells int, cel
 		return SixelResult{}
 	}
 
-	scaled := ScaleImageAspectFit(src, targetW, targetH)
+	// Standardize to square format first to ensure all icons have same aspect ratio
+	// Use the larger dimension as the standard size
+	stdSize := targetW
+	if targetH > targetW {
+		stdSize = targetH
+	}
+
+	// Create standardized square icon
+	standardized := StandardizeImage(src, stdSize)
+
+	// Now scale to fit exactly within target dimensions
+	scaled := ScaleImageAspectFit(standardized, targetW, targetH)
 	bounds := scaled.Bounds()
 
 	var buf bytes.Buffer
@@ -85,4 +99,35 @@ func SaveImage(img image.Image, path string) error {
 	}
 	defer f.Close()
 	return png.Encode(f, img)
+}
+
+// FetchDashboardIcon downloads an icon from the Dashboard Icons CDN.
+// Format: "https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/png/{name}.png"
+func FetchDashboardIcon(iconName string) (image.Image, error) {
+	if iconName == "" {
+		return nil, fmt.Errorf("empty icon name")
+	}
+
+	url := fmt.Sprintf("https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/png/%s.png", iconName)
+	return FetchIconFromURL(url)
+}
+
+// FetchIconFromURL downloads an icon from a URL.
+func FetchIconFromURL(url string) (image.Image, error) {
+	if url == "" {
+		return nil, fmt.Errorf("empty URL")
+	}
+
+	cmd := exec.Command("curl", "-sL", "--max-time", "10", url)
+	output, err := cmd.Output()
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch icon from %s: %w", url, err)
+	}
+
+	img, _, err := image.Decode(bytes.NewReader(output))
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode icon: %w", err)
+	}
+
+	return img, nil
 }

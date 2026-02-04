@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"image"
 	"os"
+	"strings"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -107,24 +108,87 @@ func queryTerminal() tea.Msg {
 	return terminalGeometryMsg{CellDim: geom.CellDim}
 }
 
-// loadIcons loads all icon images for the display apps.
+// loadIcons loads all icon images for the display apps in parallel.
+// Icon sources (in priority order):
+// 1. User-specified Dashboard Icons (icon: "dashboard:icon-name")
+// 2. User-specified URL (icon: "https://...")
+// 3. User-specified local file path
+// 4. Cached/extracted APK icon (if package specified and no user icon)
+// 5. Placeholder (fallback)
 func loadIcons(apps []config.AppConfig) tea.Cmd {
 	return func() tea.Msg {
-		icons := make([]image.Image, len(apps))
-		for i, app := range apps {
-			if app.Icon != "" {
-				img, err := graphics.LoadImage(app.Icon)
-				if err == nil {
-					icons[i] = img
-				} else {
-					icons[i] = graphics.CreatePlaceholder(64, 64)
-				}
-			} else {
-				icons[i] = graphics.CreatePlaceholder(64, 64)
-			}
+		type iconResult struct {
+			index int
+			img   image.Image
 		}
+
+		icons := make([]image.Image, len(apps))
+		resultChan := make(chan iconResult, len(apps))
+
+		// Launch goroutines for parallel loading
+		for i, app := range apps {
+			go func(index int, app config.AppConfig) {
+				img := loadSingleIcon(app)
+				resultChan <- iconResult{index: index, img: img}
+			}(i, app)
+		}
+
+		// Collect results
+		for range apps {
+			result := <-resultChan
+			icons[result.index] = result.img
+		}
+
 		return iconsLoadedMsg{Icons: icons}
 	}
+}
+
+// loadSingleIcon loads a single icon for an app.
+func loadSingleIcon(app config.AppConfig) image.Image {
+	var img image.Image
+	var err error
+
+	// Priority 1, 2, 3: User-specified icon takes priority
+	if app.Icon != "" {
+		switch {
+		// Dashboard Icons: "dashboard:icon-name"
+		case strings.HasPrefix(app.Icon, "dashboard:"):
+			iconName := strings.TrimPrefix(app.Icon, "dashboard:")
+			img, err = graphics.FetchDashboardIcon(iconName)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Warning: failed to fetch dashboard icon '%s': %v\n", iconName, err)
+			}
+
+		// Direct URL: "https://..."
+		case strings.HasPrefix(app.Icon, "http://") || strings.HasPrefix(app.Icon, "https://"):
+			img, err = graphics.FetchIconFromURL(app.Icon)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Warning: failed to fetch icon from URL '%s': %v\n", app.Icon, err)
+			}
+
+		// Local file path
+		default:
+			img, err = graphics.LoadImage(app.Icon)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Warning: failed to load icon '%s': %v\n", app.Icon, err)
+			}
+		}
+	}
+
+	// Priority 4: If no user-specified icon loaded, try APK extraction (uses cache)
+	if img == nil && app.Package != "" {
+		img, err = graphics.ExtractAPKIcon(app.Package)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: failed to extract icon for %s: %v\n", app.Name, err)
+		}
+	}
+
+	// Fallback to placeholder
+	if img == nil {
+		img = graphics.CreatePlaceholder(64, 64)
+	}
+
+	return img
 }
 
 // flashCell provides visual feedback by briefly highlighting the cell border.

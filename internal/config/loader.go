@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"gopkg.in/yaml.v3"
+	"tooie-shelf/internal/sys"
 )
 
 // ConfigPath returns the default config file path.
@@ -19,6 +20,7 @@ func ConfigPath() string {
 }
 
 // Load reads and parses the configuration file.
+// Auto-detects package/activity for apps that don't specify them.
 func Load(path string) (Config, error) {
 	cfg := DefaultConfig()
 
@@ -34,9 +36,17 @@ func Load(path string) (Config, error) {
 		return cfg, fmt.Errorf("failed to parse config: %w", err)
 	}
 
-	// Expand ~ in icon paths
+	// Expand ~ in icon paths and auto-detect missing package/activity
 	for i := range cfg.Apps {
 		cfg.Apps[i].Icon = expandPath(cfg.Apps[i].Icon)
+
+		// Auto-detect package and activity if not specified and not a command
+		if cfg.Apps[i].Command == "" && (cfg.Apps[i].Package == "" || cfg.Apps[i].Activity == "") {
+			if err := autoDetectAppInfo(&cfg.Apps[i]); err != nil {
+				// Log warning but don't fail - app may be optional
+				fmt.Fprintf(os.Stderr, "Warning: %v\n", err)
+			}
+		}
 	}
 
 	// Validate configuration
@@ -45,6 +55,43 @@ func Load(path string) (Config, error) {
 	}
 
 	return cfg, nil
+}
+
+// autoDetectAppInfo attempts to detect package and activity for an app.
+func autoDetectAppInfo(app *AppConfig) error {
+	// Skip if already has both package and activity
+	if app.Package != "" && app.Activity != "" {
+		return nil
+	}
+
+	// Skip if it's a command-based app
+	if app.Command != "" {
+		return nil
+	}
+
+	fmt.Fprintf(os.Stderr, "Auto-detecting package/activity for '%s'...\n", app.Name)
+
+	// Try to detect package
+	if app.Package == "" {
+		pkg, err := sys.AutoDetectPackage(app.Name)
+		if err != nil {
+			return fmt.Errorf("could not auto-detect package for '%s': %w", app.Name, err)
+		}
+		app.Package = pkg
+		fmt.Fprintf(os.Stderr, "  Found package: %s\n", pkg)
+	}
+
+	// Try to detect activity
+	if app.Activity == "" {
+		activity, err := sys.AutoDetectActivity(app.Package)
+		if err != nil {
+			return fmt.Errorf("could not auto-detect activity for '%s' (%s): %w", app.Name, app.Package, err)
+		}
+		app.Activity = activity
+		fmt.Fprintf(os.Stderr, "  Found activity: %s\n", activity)
+	}
+
+	return nil
 }
 
 // expandPath expands ~ to the user's home directory.
@@ -72,15 +119,22 @@ func validate(cfg Config) error {
 		// Android apps require both package and activity
 		if app.Command == "" {
 			if app.Package == "" {
-				return fmt.Errorf("app %d (%s): package name is required for Android apps", i, app.Name)
+				return fmt.Errorf("app %d (%s): package name is required for Android apps (or use auto-detect by omitting package/activity)", i, app.Name)
 			}
 			if app.Activity == "" {
-				return fmt.Errorf("app %d (%s): activity is required for Android apps (use 'command' for Linux commands)", i, app.Name)
+				return fmt.Errorf("app %d (%s): activity is required for Android apps (or use auto-detect by omitting package/activity)", i, app.Name)
 			}
 		}
 		if app.Icon != "" {
-			if _, err := os.Stat(app.Icon); err != nil {
-				return fmt.Errorf("app %d (%s): icon file not found: %s", i, app.Name, app.Icon)
+			// Skip file validation for special icon sources
+			isSpecialSource := strings.HasPrefix(app.Icon, "dashboard:") ||
+				strings.HasPrefix(app.Icon, "http://") ||
+				strings.HasPrefix(app.Icon, "https://")
+
+			if !isSpecialSource {
+				if _, err := os.Stat(app.Icon); err != nil {
+					return fmt.Errorf("app %d (%s): icon file not found: %s", i, app.Name, app.Icon)
+				}
 			}
 		}
 	}
